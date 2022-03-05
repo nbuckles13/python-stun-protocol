@@ -7,10 +7,10 @@ import struct
 
 from enum import IntEnum
 from hashlib import sha1, sha256
-from typing import List, Tuple, Type
+from typing import List, Type
 from stun_protocol import attribute
 
-from stun_protocol.attribute import Attribute, FingerprintAttribute, MessageIntegrityAttribute, MessageIntegritySha256Attribute, UserhashAttribute
+from stun_protocol.attribute import Attribute, FingerprintAttribute, MessageIntegrityAttribute, MessageIntegritySha256Attribute
 
 
 class MessageClass(IntEnum):
@@ -94,7 +94,8 @@ class Message():
 
     def pack(self) -> bytes:
         packed_attributes = b''.join(a.pack() for a in self.attributes)
-        return struct.pack(self.STRUCT_HEADER_FORMAT, self._pack_message_type(), self.message_length, self.MAGIC_COOKIE, self.transaction_id) + packed_attributes
+        return struct.pack(self.STRUCT_HEADER_FORMAT, self._pack_message_type(), self.message_length,
+                           self.MAGIC_COOKIE, self.transaction_id) + packed_attributes
 
     def unpack(self, buffer: bytes):
         (message_type, message_length, _, self.transaction_id) = struct.unpack(self.STRUCT_HEADER_FORMAT, buffer[:20])

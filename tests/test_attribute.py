@@ -1,8 +1,6 @@
 import struct
 import unittest
 
-from attr import attr
-
 import stun_protocol.attribute as attribute
 
 
@@ -211,7 +209,7 @@ class MessageIntegritySha256AttributeTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             mia.hmac = b'4'*1
 
-    def test_set_hmac_invalid_minimum(self):
+    def test_set_hmac_invalid_maximum(self):
         mia = attribute.MessageIntegritySha256Attribute(b'5' * 20)
         with self.assertRaises(ValueError):
             mia.hmac = b'6' * 40
@@ -445,7 +443,8 @@ class UseCandidateAttributeTestCase(unittest.TestCase):
         self.assertEqual(uca.pack(), b'\x00\x25\x00\x00')
 
     def test_create(self):
-        pa = attribute.UseCandidateAttribute.create(b'\x00\x25\x00\x00')
+        uca = attribute.UseCandidateAttribute.create(b'\x00\x25\x00\x00')
+        self.assertEqual(uca.type, attribute.AttributeType.USE_CANDIDATE)
 
 
 class IceControlledAttributeTestCase(unittest.TestCase):
@@ -481,7 +480,23 @@ class IceControllingAttributeTestCase(unittest.TestCase):
 
 class AttributeCreateTestCase(unittest.TestCase):
     def test_create_valid(self):
-        for cls in [attribute.MappedAddressAttribute, attribute.UsernameAttribute, attribute.MessageIntegrityAttribute, attribute.ErrorCodeAttribute, attribute.UnknownAttributesAttribute, attribute.RealmAttribute, attribute.NonceAttribute, attribute.MessageIntegritySha256Attribute, attribute.PasswordAlgorithmAttribute, attribute.UserhashAttribute, attribute.XorMappedAddressAttribute, attribute.PasswordAlgorithmsAttribute, attribute.AlternateDomainAttribute, attribute.SoftwareAttribute, attribute.AlternateServerAttribute, attribute.FingerprintAttribute]:
+        attribute_classes = [attribute.MappedAddressAttribute,
+                             attribute.UsernameAttribute,
+                             attribute.MessageIntegrityAttribute,
+                             attribute.ErrorCodeAttribute,
+                             attribute.UnknownAttributesAttribute,
+                             attribute.RealmAttribute,
+                             attribute.NonceAttribute,
+                             attribute.MessageIntegritySha256Attribute,
+                             attribute.PasswordAlgorithmAttribute,
+                             attribute.UserhashAttribute,
+                             attribute.XorMappedAddressAttribute,
+                             attribute.PasswordAlgorithmsAttribute,
+                             attribute.AlternateDomainAttribute,
+                             attribute.SoftwareAttribute,
+                             attribute.AlternateServerAttribute,
+                             attribute.FingerprintAttribute]
+        for cls in attribute_classes:
             a1 = cls()
             a2 = attribute.create(a1.pack())
             self.assertEqual(a1, a2, f'{cls}')

@@ -1,7 +1,8 @@
 import unittest
 
 import stun_protocol.message as message
-from stun_protocol.attribute import FingerprintAttribute, IceControlledAttribute, MappedAddressAttribute, NonceAttribute, PriorityAttribute, RealmAttribute, SoftwareAttribute, UserhashAttribute, UsernameAttribute, XorMappedAddressAttribute
+from stun_protocol.attribute import FingerprintAttribute, IceControlledAttribute, MappedAddressAttribute, PriorityAttribute, \
+    SoftwareAttribute, UsernameAttribute, XorMappedAddressAttribute
 
 
 class MessageTestCase(unittest.TestCase):
@@ -114,7 +115,9 @@ class MessageTestCase(unittest.TestCase):
         m.add_message_integrity_sha256_attribute(b'0' * 64)
         self.assertEqual(len(m.attributes), 1)
         self.assertEqual(
-            m.attributes[0].hmac, b'\x73\x15\xe4\x58\xc0\x29\x4b\x23\x96\x2c\x5e\x5b\x03\x02\x36\xb7\x73\xa8\x00\x75\xa4\x24\xc6\xbd\x82\x66\x29\x61\x39\x42\xfb\x56')
+            m.attributes[0].hmac,
+            b'\x73\x15\xe4\x58\xc0\x29\x4b\x23\x96\x2c\x5e\x5b\x03\x02\x36\xb7\x73\xa8\x00\x75\xa4\x24\xc6\xbd\x82\x66' +
+            b'\x29\x61\x39\x42\xfb\x56')
 
     def test_add_fingerprint_attribute(self):
         m = message.Message(message.MessageClass.REQUEST, message.MessageMethod.BINDING, transaction_id=b'\x00' * 12)

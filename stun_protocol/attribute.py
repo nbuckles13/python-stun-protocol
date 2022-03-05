@@ -1,11 +1,10 @@
 from __future__ import annotations
-from random import random
 
 import struct
 
 from abc import ABC, abstractmethod
 from enum import IntEnum
-from typing import List, Type, TypeVar
+from typing import List, Type
 
 
 class AttributeType(IntEnum):
@@ -97,7 +96,8 @@ class Attribute(ABC):
         if attribute_length > max_attribute_length:
             # maybe return a custom exception here
             raise ValueError(
-                f'STUN attribute length {attribute_length} is longer than the remainder of the given buffer {max_attribute_length}')
+                f'STUN attribute length {attribute_length} is longer than the remainder ' +
+                'of the given buffer {max_attribute_length}')
 
         self._unpack_value(buffer[4:attribute_length+4])
 
@@ -183,7 +183,8 @@ class LengthCheckedAttributeBase(Attribute):
 
         if actual_length < minimum_length or actual_length > maximum_length:
             raise ValueError(
-                f'{type(self).__name__} requires a value of length >= {minimum_length} and <= {maximum_length} bytes, found {actual_length}')
+                f'{type(self).__name__} requires a value of length >= {minimum_length} and <= {maximum_length} bytes' +
+                ', found {actual_length}')
 
     def _unpack_value(self, buffer: bytes) -> None:
         self._set_value(buffer)
@@ -417,7 +418,8 @@ class Algorithm:
 
     def __eq__(self, other: Algorithm) -> bool:
         if isinstance(other, Algorithm):
-            return (self.algorithm_number == other.algorithm_number) and (self.algorithm_parameters == other.algorithm_parameters)
+            return (self.algorithm_number == other.algorithm_number) and \
+                (self.algorithm_parameters == other.algorithm_parameters)
 
     @property
     def algorithm_parameters_length(self):
@@ -425,10 +427,11 @@ class Algorithm:
 
     def pack(self) -> bytes:
         padding_length = _padding_length(self.algorithm_parameters_length)
-        return struct.pack(f'!HH{self.algorithm_parameters_length}s{padding_length}s', self.algorithm_number, self.algorithm_parameters_length, self.algorithm_parameters, b'\x00' * padding_length)
+        return struct.pack(f'!HH{self.algorithm_parameters_length}s{padding_length}s', self.algorithm_number,
+                           self.algorithm_parameters_length, self.algorithm_parameters, b'\x00' * padding_length)
 
     def unpack(self, buffer: bytes) -> int:
-        (self.algorithm_number, length) = struct.unpack(f'!HH', buffer[:4])
+        (self.algorithm_number, length) = struct.unpack('!HH', buffer[:4])
         self.algorithm_parameters = buffer[4:(length + 4)]
         return 4 + length + _padding_length(length)
 
@@ -571,7 +574,7 @@ class IceControllingAttribute(IceControlAttributeBase):
         return AttributeType.ICE_CONTROLLING
 
 
-def create(buffer: bytes) -> Type[Attribute]:
+def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
     (attribute_type,) = struct.unpack('!H', buffer[:2])
 
     if attribute_type == AttributeType.MAPPED_ADDRESS:
