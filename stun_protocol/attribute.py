@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import struct
 
 from abc import ABC, abstractmethod
@@ -72,7 +70,7 @@ class Attribute(ABC):
 
     @classmethod
     @abstractmethod
-    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+    def attribute_type(cls: Type['Attribute']) -> AttributeType:
         return AttributeType.RESERVED
 
     def packed_length(self) -> int:
@@ -106,7 +104,7 @@ class Attribute(ABC):
         pass
 
     @classmethod
-    def create(cls: Type[Attribute], buffer: bytes) -> Type[Attribute]:
+    def create(cls: Type['Attribute'], buffer: bytes) -> Type['Attribute']:
         a = cls()
         a._unpack(buffer)
         return a
@@ -209,7 +207,7 @@ class LengthFixedAttributeBase(LengthCheckedAttributeBase):
 
     @classmethod
     @abstractmethod
-    def fixed_length(cls: Type[LengthFixedAttributeBase]) -> int:
+    def fixed_length(cls: Type['LengthFixedAttributeBase']) -> int:
         return 0
 
 
@@ -278,8 +276,8 @@ class UserhashAttribute(LengthFixedAttributeBase):
 
 
 class MessageIntegrityAttribute(LengthFixedAttributeBase):
-    def __init__(self, userhash: hmac = bytes(), **kwargs):
-        super().__init__(userhash, **kwargs)
+    def __init__(self, hmac: bytes = bytes(), **kwargs):
+        super().__init__(hmac, **kwargs)
 
     @staticmethod
     def fixed_length() -> int:
@@ -299,8 +297,8 @@ class MessageIntegrityAttribute(LengthFixedAttributeBase):
 
 
 class MessageIntegritySha256Attribute(LengthCheckedAttributeBase):
-    def __init__(self, userhash: hmac = bytes(), **kwargs):
-        super().__init__(userhash, **kwargs)
+    def __init__(self, hmac: bytes = bytes(), **kwargs):
+        super().__init__(hmac, **kwargs)
 
     @classmethod
     def minimum_length(cls: Type[Attribute]) -> int:
@@ -416,7 +414,7 @@ class Algorithm:
     def __repr__(self) -> str:
         return f'Algorithm({self.algorithm_number}, {self.algorithm_parameters})'
 
-    def __eq__(self, other: Algorithm) -> bool:
+    def __eq__(self, other: 'Algorithm') -> bool:
         if isinstance(other, Algorithm):
             return (self.algorithm_number == other.algorithm_number) and \
                 (self.algorithm_parameters == other.algorithm_parameters)

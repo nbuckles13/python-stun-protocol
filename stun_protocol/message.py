@@ -1,4 +1,3 @@
-from __future__ import annotations
 import binascii
 
 import hmac
@@ -54,7 +53,7 @@ class Message():
 
         [self.add_attribute(a) for a in attributes]
 
-    def __eq__(self, o: Message) -> bool:
+    def __eq__(self, o: 'Message') -> bool:
         if isinstance(o, Message):
             return ((self.message_class == o.message_class) and (self.message_method == o.message_method) and
                     (self.transaction_id == o.transaction_id) and (self.attributes == o.attributes))
@@ -64,7 +63,7 @@ class Message():
         return sum(a.packed_length() for a in self.attributes)
 
     @classmethod
-    def generate_transaction_id(cls: Message) -> bytes:
+    def generate_transaction_id(cls: 'Message') -> bytes:
         return secrets.token_bytes(12)
 
     def _pack_message_type(self) -> int:
@@ -115,7 +114,7 @@ class Message():
             offset += a.packed_length()
 
     @classmethod
-    def create(cls: Message, buffer: bytes) -> Message:
+    def create(cls: 'Message', buffer: bytes) -> 'Message':
         m = Message(MessageClass.REQUEST, MessageMethod.BINDING)
         m.unpack(buffer)
         return m
@@ -133,7 +132,7 @@ class Message():
         packed_message = self.pack()
 
         # 3. run hmac-sha1 over the packed stun message, up to the start of the message integrity attribute itself
-        mia_value = hmac.digest(key, packed_message[0:-mia.packed_length()], sha1)
+        mia_value = hmac.new(key, packed_message[0:-mia.packed_length()], sha1).digest()
         self.attributes[-1].hmac = mia_value
 
     def add_message_integrity_sha256_attribute(self, key: bytes) -> None:
@@ -145,7 +144,7 @@ class Message():
         packed_message = self.pack()
 
         # 3. run hmac-sha256 over the packed stun message, up to the start of the message integrity attribute itself
-        mia_value = hmac.digest(key, packed_message[0:-mia.packed_length()], sha256)
+        mia_value = hmac.new(key, packed_message[0:-mia.packed_length()], sha256).digest()
         self.attributes[-1].hmac = mia_value
 
     def add_fingerprint_attribute(self) -> None:
