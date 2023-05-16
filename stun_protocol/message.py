@@ -9,7 +9,8 @@ from hashlib import sha1, sha256
 from typing import List, Type
 from stun_protocol import attribute
 
-from stun_protocol.attribute import Attribute, FingerprintAttribute, MessageIntegrityAttribute, MessageIntegritySha256Attribute
+from stun_protocol.attribute import Attribute, FingerprintAttribute, MessageIntegrityAttribute, \
+    MessageIntegritySha256Attribute, XorMappedAddressAttribute, MappedAddressAttributeBase
 
 
 class MessageClass(IntEnum):
@@ -158,3 +159,15 @@ class Message():
         # 3. run crc32 over the packed stun message, up to the start of the fingerprint attribute itself
         fpa_value = binascii.crc32(packed_message[0:-fpa.packed_length()], 0) ^ 0x5354554e
         self.attributes[-1].fingerprint = fpa_value
+
+    def add_xor_mapped_address_attribute_v4(self, port: int, address: int) -> None:
+        # 1. xor the port with the most 16 significant bits of the cookie
+        port = port ^ ((self.MAGIC_COOKIE & 0xFFFF0000) >> 16)
+
+        # 2. xor the address with the magic cookie and convert to bytes
+        address = address ^ self.MAGIC_COOKIE
+        address = address.to_bytes(length=4, byteorder='big')
+
+        # 3. add an XorMappedAddressAttribute with the calculated values
+        xmaa = XorMappedAddressAttribute(MappedAddressAttributeBase.family_ipv4, port, address)
+        self.add_attribute(xmaa)

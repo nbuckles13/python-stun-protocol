@@ -1,7 +1,7 @@
 import unittest
 
 import stun_protocol.message as message
-from stun_protocol.attribute import FingerprintAttribute, IceControlledAttribute, MappedAddressAttribute, PriorityAttribute, \
+from stun_protocol.attribute import FingerprintAttribute, IceControlledAttribute, MappedAddressAttribute, MappedAddressAttributeBase, PriorityAttribute, \
     SoftwareAttribute, UsernameAttribute, XorMappedAddressAttribute
 
 
@@ -125,6 +125,14 @@ class MessageTestCase(unittest.TestCase):
         self.assertEqual(len(m.attributes), 1)
         self.assertEqual(m.attributes[0].fingerprint, 0xb2aaf9f6)
 
+    def test_add_xor_mapped_address_attribute_v4(self):
+        m = message.Message(message.MessageClass.REQUEST, message.MessageMethod.BINDING, transaction_id=b'\x00' * 12)
+        m.add_xor_mapped_address_attribute_v4(0x1234, 0x567890AB)
+        self.assertEqual(len(m.attributes), 1)
+        self.assertEqual(m.attributes[0].family, MappedAddressAttributeBase.family_ipv4)
+        self.assertEqual(m.attributes[0].port, 0x3326)
+        self.assertEqual(m.attributes[0].address, b'\x77\x6A\x34\xE9')
+
     def test_sample_request_rfc5769_2_dot_1(self):
         # Taken from https://datatracker.ietf.org/doc/html/rfc5769#section-2.1
         test_vector = b'' + \
@@ -195,7 +203,7 @@ class MessageTestCase(unittest.TestCase):
                             transaction_id=b'\xb7\xe7\xa7\x01\xbc\x34\xd6\x86\xfa\x87\xdf\xae',
                             attribute_padding_byte=b'\x20')
         m.add_attribute(SoftwareAttribute(b'test vector'))
-        m.add_attribute(XorMappedAddressAttribute(MappedAddressAttribute.family_ipv4, 0xa147, b'\xe1\x12\xa6\x43'))
+        m.add_xor_mapped_address_attribute_v4(32853, 0xC0000201)
         m.add_message_integrity_attribute(b'VOkJxbRl1RmTxUk/WvJxBt')
         m.add_fingerprint_attribute()
 
