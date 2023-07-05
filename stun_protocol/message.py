@@ -11,7 +11,7 @@ from stun_protocol import attribute
 
 from stun_protocol.attribute import Attribute, FingerprintAttribute, MessageIntegrityAttribute, \
     MessageIntegritySha256Attribute, XorMappedAddressAttribute, MappedAddressAttributeBase
-
+from stun_protocol.common import MAGIC_COOKIE
 
 class MessageClass(IntEnum):
     'https://datatracker.ietf.org/doc/html/rfc8489#section-5'
@@ -37,7 +37,6 @@ class MessageMethod(IntEnum):
 
 
 class Message():
-    MAGIC_COOKIE = 0x2112A442
     STRUCT_HEADER_FORMAT = '!HHI12s'
 
     def __init__(self,
@@ -95,7 +94,7 @@ class Message():
     def pack(self) -> bytes:
         packed_attributes = b''.join(a.pack() for a in self.attributes)
         return struct.pack(self.STRUCT_HEADER_FORMAT, self._pack_message_type(), self.message_length,
-                           self.MAGIC_COOKIE, self.transaction_id) + packed_attributes
+                           MAGIC_COOKIE, self.transaction_id) + packed_attributes
 
     def unpack(self, buffer: bytes):
         (message_type, message_length, _, self.transaction_id) = struct.unpack(self.STRUCT_HEADER_FORMAT, buffer[:20])
@@ -162,10 +161,10 @@ class Message():
 
     def add_xor_mapped_address_attribute_v4(self, port: int, address: int) -> None:
         # 1. xor the port with the most 16 significant bits of the cookie
-        port = port ^ ((self.MAGIC_COOKIE & 0xFFFF0000) >> 16)
+        port = port ^ ((MAGIC_COOKIE & 0xFFFF0000) >> 16)
 
         # 2. xor the address with the magic cookie and convert to bytes
-        address = address ^ self.MAGIC_COOKIE
+        address = address ^ MAGIC_COOKIE
         address = address.to_bytes(length=4, byteorder='big')
 
         # 3. add an XorMappedAddressAttribute with the calculated values

@@ -130,8 +130,10 @@ class MessageTestCase(unittest.TestCase):
         m.add_xor_mapped_address_attribute_v4(0x1234, 0x567890AB)
         self.assertEqual(len(m.attributes), 1)
         self.assertEqual(m.attributes[0].family, MappedAddressAttributeBase.family_ipv4)
-        self.assertEqual(m.attributes[0].port, 0x3326)
-        self.assertEqual(m.attributes[0].address, b'\x77\x6A\x34\xE9')
+        self.assertEqual(m.attributes[0]._port, 0x3326)
+        self.assertEqual(m.attributes[0].port, 0x1234)
+        self.assertEqual(m.attributes[0]._address, b'\x77\x6A\x34\xE9')
+        self.assertEqual(m.attributes[0].address, "86.120.144.171")
 
     def test_sample_request_rfc5769_2_dot_1(self):
         # Taken from https://datatracker.ietf.org/doc/html/rfc5769#section-2.1
