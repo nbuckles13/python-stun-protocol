@@ -86,8 +86,8 @@ class MappedAddressAttributeTestCase(unittest.TestCase):
         maa = attribute.MappedAddressAttribute(1, 2, b'\x03')
         self.assertEqual(maa.type, attribute.AttributeType.MAPPED_ADDRESS)
         self.assertEqual(maa.family, 1)
-        self.assertEqual(maa.port, 2)
-        self.assertEqual(maa.address, b'\x03')
+        self.assertEqual(maa._port, 2)
+        self.assertEqual(maa._address, b'\x03')
 
     def test_value(self):
         maa = attribute.MappedAddressAttribute(4, 5, b'\x06\x07')
@@ -114,8 +114,16 @@ class XorMappedAddressAttributeTestCase(unittest.TestCase):
         maa = attribute.XorMappedAddressAttribute(1, 2, b'\x03')
         self.assertEqual(maa.type, attribute.AttributeType.XOR_MAPPED_ADDRESS)
         self.assertEqual(maa.family, 1)
-        self.assertEqual(maa.port, 2)
-        self.assertEqual(maa.address, b'\x03')
+        self.assertEqual(maa._port, 2)
+        self.assertEqual(maa._address, b'\x03')
+
+    def test_construct_from_setters(self):
+        m = attribute.XorMappedAddressAttribute()
+        m.port = 38272
+        m.address = "10.10.10.3"
+        assert m.port == 38272
+        assert m.address == "10.10.10.3"
+        assert m.value == b'\x00\x01\xb4\x92+\x18\xaeA'
 
 
 class UsernameAttributeTestCase(unittest.TestCase):
@@ -389,8 +397,8 @@ class AlternateServerAttributeTestCase(unittest.TestCase):
         asa = attribute.AlternateServerAttribute(1, 2, b'\x03')
         self.assertEqual(asa.type, attribute.AttributeType.ALTERNATE_SERVER)
         self.assertEqual(asa.family, 1)
-        self.assertEqual(asa.port, 2)
-        self.assertEqual(asa.address, b'\x03')
+        self.assertEqual(asa._port, 2)
+        self.assertEqual(asa._address, b'\x03')
 
 
 class AlternateDomainAttributeTestCase(unittest.TestCase):

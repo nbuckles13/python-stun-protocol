@@ -1,8 +1,11 @@
 import struct
+import ipaddress
 
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from typing import List, Type
+
+from stun_protocol.common import MAGIC_COOKIE
 
 
 class AttributeType(IntEnum):
@@ -34,6 +37,8 @@ class AttributeType(IntEnum):
     USE_CANDIDATE = 0x0025
     ICE_CONTROLLED = 0x8029
     ICE_CONTROLLING = 0x802A
+
+    GOOG_NETWORK_INFO = 0xC057
 
 
 def _padding_length(length: int) -> int:
@@ -120,16 +125,32 @@ class MappedAddressAttributeBase(Attribute):
     def __init__(self, family: int = family_ipv4, port: int = 0, address: bytes = bytes(), **kwargs):
         super().__init__(**kwargs)
         self.family = family
-        self.port = port
-        self.address = address
+        self._port = port
+        self._address = address
+
+    @property
+    def port(self):
+        return self._port
+
+    @port.setter
+    def port(self, value):
+        self._port = value
+
+    @property
+    def address(self):
+        return self._address
+
+    @address.setter
+    def address(self, value):
+        self._address = value
 
     @property
     def value(self) -> bytes:
-        return struct.pack(self._full_format_string % len(self.address), 0, self.family, self.port, self.address)
+        return struct.pack(self._full_format_string % len(self._address), 0, self.family, self._port, self._address)
 
     def _unpack_value(self, buffer: bytes) -> None:
         address_length = len(buffer) - struct.calcsize(self._fixed_format_string)
-        (_, self.family, self.port, self.address) = struct.unpack(self._full_format_string % address_length, buffer)
+        (_, self.family, self._port, self._address) = struct.unpack(self._full_format_string % address_length, buffer)
 
 
 class IntAttributeBase(Attribute):
@@ -235,6 +256,22 @@ class XorMappedAddressAttribute(MappedAddressAttributeBase):
     @classmethod
     def attribute_type(cls: Type[Attribute]) -> AttributeType:
         return AttributeType.XOR_MAPPED_ADDRESS
+
+    @property
+    def port(self):
+        return self._port ^ (MAGIC_COOKIE >> 16)
+
+    @port.setter
+    def port(self, value):
+        self._port = value ^ (MAGIC_COOKIE >> 16)
+
+    @property
+    def address(self):
+        return str(ipaddress.ip_address(int.from_bytes(self._address, 'big') ^ MAGIC_COOKIE))
+
+    @address.setter
+    def address(self, value):
+        self._address = ipaddress.ip_address(int(ipaddress.ip_address(value)) ^ MAGIC_COOKIE).packed
 
 
 class UsernameAttribute(StringAttributeBase):
@@ -572,6 +609,24 @@ class IceControllingAttribute(IceControlAttributeBase):
         return AttributeType.ICE_CONTROLLING
 
 
+class GoogNetworkInfoAttribute(Attribute):
+    def __init__(self, network_id: int = 0, network_cost: int = 999, **kwargs):
+        super().__init__(**kwargs)
+        self.network_id = network_id
+        self.network_cost = network_cost
+
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.GOOG_NETWORK_INFO
+
+    @property
+    def value(self) -> bytes:
+        return struct.pack('!HH', self.network_id, self.network_cost)
+
+    def _unpack_value(self, buffer: bytes) -> None:
+        (self.network_id, self.network_cost) = struct.unpack('!HH', buffer)
+
+
 def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
     (attribute_type,) = struct.unpack('!H', buffer[:2])
 
@@ -615,5 +670,7 @@ def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
         return IceControlledAttribute.create(buffer)
     elif attribute_type == AttributeType.ICE_CONTROLLING:
         return IceControllingAttribute.create(buffer)
+    elif attribute_type == AttributeType.GOOG_NETWORK_INFO:
+        return GoogNetworkInfoAttribute.create(buffer)
 
     raise ValueError(f'Unknown STUN attribute type {attribute_type}')
