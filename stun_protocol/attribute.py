@@ -11,6 +11,7 @@ class AttributeType(IntEnum):
     'Comprehension-required range (0x0000-0x7FFF):'
     RESERVED = 0x0000
     MAPPED_ADDRESS = 0x0001
+    CHANGE_REQUEST = 0x0003
     USERNAME = 0x0006
     MESSAGE_INTEGRITY = 0x0008
     ERROR_CODE = 0x0009
@@ -35,6 +36,8 @@ class AttributeType(IntEnum):
     ICE_CONTROLLED = 0x8029
     ICE_CONTROLLING = 0x802A
 
+    RESPONSE_ORIGIN = 0x802B
+    OTHER_ADDRESS = 0x802C
 
 def _padding_length(length: int) -> int:
     return [0, 3, 2, 1][length % 4]
@@ -272,6 +275,27 @@ class UserhashAttribute(LengthFixedAttributeBase):
 
     @userhash.setter
     def userhash(self, value: bytes) -> None:
+        self._set_value(value)
+
+
+class ChangeRequestAttribute(LengthFixedAttributeBase):
+    def __init__(self, changerequest: bytes = bytes(), **kwargs):
+        super().__init__(changerequest, **kwargs)
+
+    @staticmethod
+    def fixed_length() -> int:
+        return 4
+
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.CHANGE_REQUEST
+
+    @property
+    def changerequest(self) -> bytes:
+        return self._bytes_value
+
+    @changerequest.setter
+    def changerequest(self, value: bytes) -> None:
         self._set_value(value)
 
 
@@ -572,6 +596,18 @@ class IceControllingAttribute(IceControlAttributeBase):
         return AttributeType.ICE_CONTROLLING
 
 
+class ResponseOriginAttribute(MappedAddressAttributeBase):
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.RESPONSE_ORIGIN
+
+
+class OtherAddressAttribute(MappedAddressAttributeBase):
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.OTHER_ADDRESS
+
+
 def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
     (attribute_type,) = struct.unpack('!H', buffer[:2])
 
@@ -615,5 +651,11 @@ def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
         return IceControlledAttribute.create(buffer)
     elif attribute_type == AttributeType.ICE_CONTROLLING:
         return IceControllingAttribute.create(buffer)
+    elif attribute_type == AttributeType.RESPONSE_ORIGIN:
+        return ResponseOriginAttribute.create(buffer)
+    elif attribute_type == AttributeType.OTHER_ADDRESS:
+        return OtherAddressAttribute.create(buffer)
+    elif attribute_type == AttributeType.CHANGE_REQUEST:
+        return ChangeRequestAttribute.create(buffer)
 
     raise ValueError(f'Unknown STUN attribute type {attribute_type}')
