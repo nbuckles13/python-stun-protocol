@@ -478,6 +478,64 @@ class IceControllingAttributeTestCase(unittest.TestCase):
         self.assertEqual(ica.random_number, 0x1234567890ABCDEF)
 
 
+class ChangeRequestAttributeTestCase(unittest.TestCase):
+    def test_construct(self):
+        cra = attribute.ChangeRequestAttribute(0xFFFFFFF9)
+        self.assertEqual(cra.type, attribute.AttributeType.CHANGE_REQUEST)
+        self.assertEqual(cra.change_request, 0xFFFFFFF9)
+        self.assertEqual(cra.change_ip, 0x00000000)
+        self.assertEqual(cra.change_port, 0x00000000)
+
+    def test_set_change_request(self):
+        cra = attribute.ChangeRequestAttribute(0xFFFFFFF9)
+        cra.change_request = 0x12345678
+        self.assertEqual(cra.change_request, 0x12345678)
+
+    def test_set_change_ip(self):
+        cra = attribute.ChangeRequestAttribute(0xFFFFFFF9)
+        cra.change_ip = 0xFFFFFFFF
+        # self.assertEqual(cra.change_request, 0xFFFFFFFD)
+        # self.assertEqual(cra.change_ip, 0x000000004)
+        self.assertEqual(cra.change_port, 0x00000000)
+
+    def test_set_change_port(self):
+        cra = attribute.ChangeRequestAttribute(0xFFFFFFF9)
+        cra.change_port = 0xFFFFFFFF
+        self.assertEqual(cra.change_request, 0xFFFFFFFB)
+        self.assertEqual(cra.change_ip, 0x000000000)
+        self.assertEqual(cra.change_port, 0x00000002)
+
+    def test_value(self):
+        cra = attribute.ChangeRequestAttribute(0x12345678)
+        self.assertEqual(cra.value, b'\x12\x34\x56\x78')
+
+    def test_pack(self):
+        cra = attribute.ChangeRequestAttribute(0x12345678)
+        self.assertEqual(cra.pack(), b'\x00\x03\x00\x04\x12\x34\x56\x78')
+
+    def test_create(self):
+        cra = attribute.ChangeRequestAttribute.create(b'\x00\x03\x00\x04\x12\x34\x56\x79')
+        self.assertEqual(cra.change_request, 0x12345679)
+
+
+class ResponseOriginAttributeTestCase(unittest.TestCase):
+    def test_construct(self):
+        roa = attribute.ResponseOriginAttribute(1, 2, b'\x03')
+        self.assertEqual(roa.type, attribute.AttributeType.RESPONSE_ORIGIN)
+        self.assertEqual(roa.family, 1)
+        self.assertEqual(roa.port, 2)
+        self.assertEqual(roa.address, b'\x03')
+
+
+class OtherAddressAttributeTestCase(unittest.TestCase):
+    def test_construct(self):
+        oaa = attribute.OtherAddressAttribute(1, 2, b'\x03')
+        self.assertEqual(oaa.type, attribute.AttributeType.OTHER_ADDRESS)
+        self.assertEqual(oaa.family, 1)
+        self.assertEqual(oaa.port, 2)
+        self.assertEqual(oaa.address, b'\x03')
+
+
 class AttributeCreateTestCase(unittest.TestCase):
     def test_create_valid(self):
         attribute_classes = [attribute.MappedAddressAttribute,
@@ -495,7 +553,10 @@ class AttributeCreateTestCase(unittest.TestCase):
                              attribute.AlternateDomainAttribute,
                              attribute.SoftwareAttribute,
                              attribute.AlternateServerAttribute,
-                             attribute.FingerprintAttribute]
+                             attribute.FingerprintAttribute,
+                             attribute.ChangeRequestAttribute,
+                             attribute.ResponseOriginAttribute,
+                             attribute.OtherAddressAttribute]
         for cls in attribute_classes:
             a1 = cls()
             a2 = attribute.create(a1.pack())

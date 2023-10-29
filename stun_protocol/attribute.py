@@ -39,6 +39,7 @@ class AttributeType(IntEnum):
     RESPONSE_ORIGIN = 0x802B
     OTHER_ADDRESS = 0x802C
 
+
 def _padding_length(length: int) -> int:
     return [0, 3, 2, 1][length % 4]
 
@@ -278,25 +279,37 @@ class UserhashAttribute(LengthFixedAttributeBase):
         self._set_value(value)
 
 
-class ChangeRequestAttribute(LengthFixedAttributeBase):
-    def __init__(self, changerequest: bytes = bytes(), **kwargs):
-        super().__init__(changerequest, **kwargs)
-
-    @staticmethod
-    def fixed_length() -> int:
-        return 4
+class ChangeRequestAttribute(IntAttributeBase):
+    def __init__(self, change_request: int = 0, **kwargs):
+        super().__init__(change_request, 'I', **kwargs)
 
     @classmethod
     def attribute_type(cls: Type[Attribute]) -> AttributeType:
         return AttributeType.CHANGE_REQUEST
 
     @property
-    def changerequest(self) -> bytes:
-        return self._bytes_value
+    def change_request(self) -> int:
+        return self._int_value
 
-    @changerequest.setter
-    def changerequest(self, value: bytes) -> None:
-        self._set_value(value)
+    @change_request.setter
+    def change_request(self, value: int) -> None:
+        self._int_value = value
+
+    @property
+    def change_ip(self) -> int:
+        return self._int_value & 0x00000004
+
+    @change_ip.setter
+    def change_ip(self, value: int):
+        self._int_value |= (value & 0x00000004)
+
+    @property
+    def change_port(self) -> int:
+        return self._int_value & 0x00000002
+
+    @change_port.setter
+    def change_port(self, value: int):
+        self._int_value |= (value & 0x00000002)
 
 
 class MessageIntegrityAttribute(LengthFixedAttributeBase):
