@@ -18,6 +18,7 @@ class AttributeType(IntEnum):
     UNKNOWN_ATTRIBUTES = 0X000a
     REALM = 0X0014
     NONCE = 0X0015
+    REQUESTED_TRANSPORT = 0x19
     MESSAGE_INTEGRITY_SHA256 = 0x001C
     PASSWORD_ALGORITHM = 0x001D
     USERHASH = 0x001E
@@ -38,6 +39,9 @@ class AttributeType(IntEnum):
 
     RESPONSE_ORIGIN = 0x802B
     OTHER_ADDRESS = 0x802C
+
+    # Use -1 for unknown attributes
+    UNKNOWN = -1
 
 
 def _padding_length(length: int) -> int:
@@ -375,6 +379,33 @@ class FingerprintAttribute(Attribute):
         (self.fingerprint,) = struct.unpack('!I', buffer)
 
 
+class RequestedTransportAttribute(Attribute):
+    UDP_PROTOCOL = 17  # UDP protocl
+
+    def __init__(self, protocol: int = UDP_PROTOCOL):
+        super().__init__()
+        if protocol != self.UDP_PROTOCOL:
+            raise ValueError(f"Invalid protocol: {protocol}. Only UDP (17) is supported.")
+        self.protocol = protocol
+        self.rffu = 0  # RFFU assign 0
+
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.REQUESTED_TRANSPORT
+
+    @property
+    def value(self) -> bytes:
+        # pack Protocol (1 byte) and RFFU (3 bytes)
+        return struct.pack('!B3x', self.protocol)
+
+    def _unpack_value(self, buffer: bytes) -> None:
+        if len(buffer) != 4:
+            raise ValueError(f"Invalid buffer length for Requested-Transport: {len(buffer)}")
+        self.protocol = struct.unpack('!B3x', buffer)[0]
+        if self.protocol != self.UDP_PROTOCOL:
+            raise ValueError(f"Unsupported protocol {self.protocol}. Only UDP (17) is supported.")
+
+
 class ErrorCodeAttribute(Attribute):
     def __init__(self, error_code: int = 0, reason_phrase: bytes = bytes(), **kwargs):
         super().__init__(**kwargs)
@@ -621,8 +652,32 @@ class OtherAddressAttribute(MappedAddressAttributeBase):
         return AttributeType.OTHER_ADDRESS
 
 
+class UnknownAttribute(Attribute):
+    def __init__(self, attribute_type: int, raw_data: bytes):
+        super().__init__()
+        self.attribute_type = attribute_type
+        self.raw_data = raw_data
+
+    @classmethod
+    def attribute_type(cls: Type[Attribute]) -> AttributeType:
+        return AttributeType.UNKNOWN
+
+    @property
+    def value(self) -> bytes:
+        # Return the raw data (excluding the type and length, if needed)
+        return self.raw_data[4:]
+
+    def _unpack_value(self, buffer: bytes) -> None:
+        # Store the raw data for later inspection if needed
+        self.raw_data = buffer
+
+    def __str__(self) -> str:
+        return (f"UnknownAttribute(type={self.attribute_type}, "
+                f"length={len(self.raw_data) - 4}, raw_data={self.raw_data.hex()})")
+
+
 def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
-    (attribute_type,) = struct.unpack('!H', buffer[:2])
+    (attribute_type, attribute_length) = struct.unpack('!HH', buffer[:4])
 
     if attribute_type == AttributeType.MAPPED_ADDRESS:
         return MappedAddressAttribute.create(buffer)
@@ -656,6 +711,8 @@ def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
         return AlternateServerAttribute.create(buffer)
     elif attribute_type == AttributeType.FINGERPRINT:
         return FingerprintAttribute.create(buffer)
+    elif attribute_type == AttributeType.REQUESTED_TRANSPORT:
+        return RequestedTransportAttribute.create(buffer)
     elif attribute_type == AttributeType.PRIORITY:
         return PriorityAttribute.create(buffer)
     elif attribute_type == AttributeType.USE_CANDIDATE:
@@ -671,4 +728,8 @@ def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
     elif attribute_type == AttributeType.CHANGE_REQUEST:
         return ChangeRequestAttribute.create(buffer)
 
-    raise ValueError(f'Unknown STUN attribute type {attribute_type}')
+    total_length = 4 + attribute_length + _padding_length(attribute_length)
+    # Return an UnknownAttribute instance with the buffer
+    unknown =  UnknownAttribute(attribute_type, buffer[:total_length])
+    print(unknown)
+    return unknown
