@@ -18,7 +18,6 @@ class AttributeType(IntEnum):
     UNKNOWN_ATTRIBUTES = 0X000a
     REALM = 0X0014
     NONCE = 0X0015
-    REQUESTED_TRANSPORT = 0x19
     MESSAGE_INTEGRITY_SHA256 = 0x001C
     PASSWORD_ALGORITHM = 0x001D
     USERHASH = 0x001E
@@ -31,6 +30,9 @@ class AttributeType(IntEnum):
     ALTERNATE_SERVER = 0x8023
     FINGERPRINT = 0x8028
 
+    'https://datatracker.ietf.org/doc/html/rfc5766#section-14'
+    REQUESTED_TRANSPORT = 0x19
+
     'https://datatracker.ietf.org/doc/html/rfc8445#section-16'
     PRIORITY = 0x0024
     USE_CANDIDATE = 0x0025
@@ -39,9 +41,6 @@ class AttributeType(IntEnum):
 
     RESPONSE_ORIGIN = 0x802B
     OTHER_ADDRESS = 0x802C
-
-    # Use -1 for unknown attributes
-    UNKNOWN = -1
 
 
 def _padding_length(length: int) -> int:
@@ -92,10 +91,7 @@ class Attribute(ABC):
 
     def _unpack(self, buffer: bytes) -> None:
         (attribute_type, attribute_length) = struct.unpack('!HH', buffer[:4])
-        if attribute_type != self.attribute_type():
-            # maybe return a custom exception here
-            raise ValueError(
-                f'Invalid STUN attribute type {attribute_type}, expected {self.attribute_type()} for {type(self).__name__}')
+        self._check_attribute_type(attribute_type)
 
         buffer_length = len(buffer)
         max_attribute_length = buffer_length - 4
@@ -106,6 +102,11 @@ class Attribute(ABC):
                 'of the given buffer {max_attribute_length}')
 
         self._unpack_value(buffer[4:attribute_length+4])
+
+    def _check_attribute_type(self, attribute_type: int):
+        if attribute_type != self.attribute_type():
+            raise ValueError(
+                f'Invalid STUN attribute type {attribute_type}, expected {self.attribute_type()} for {type(self).__name__}')
 
     @abstractmethod
     def _unpack_value(self, buffer: bytes) -> None:
@@ -136,8 +137,10 @@ class MappedAddressAttributeBase(Attribute):
         return struct.pack(self._full_format_string % len(self.address), 0, self.family, self.port, self.address)
 
     def _unpack_value(self, buffer: bytes) -> None:
-        address_length = len(buffer) - struct.calcsize(self._fixed_format_string)
-        (_, self.family, self.port, self.address) = struct.unpack(self._full_format_string % address_length, buffer)
+        address_length = len(buffer) - \
+            struct.calcsize(self._fixed_format_string)
+        (_, self.family, self.port, self.address) = struct.unpack(
+            self._full_format_string % address_length, buffer)
 
 
 class IntAttributeBase(Attribute):
@@ -170,7 +173,8 @@ class StringAttributeBase(Attribute):
 class LengthCheckedAttributeBase(Attribute):
     def __init__(self, bytes_value: bytes, **kwargs):
         super().__init__(**kwargs)
-        self._set_value(bytes_value if bytes_value else b'\x00' * self.minimum_length())
+        self._set_value(
+            bytes_value if bytes_value else b'\x00' * self.minimum_length())
 
     @classmethod
     @abstractmethod
@@ -380,14 +384,12 @@ class FingerprintAttribute(Attribute):
 
 
 class RequestedTransportAttribute(Attribute):
-    UDP_PROTOCOL = 17  # UDP protocl
+    UDP_PROTOCOL = 17  # UDP protocol
 
-    def __init__(self, protocol: int = UDP_PROTOCOL):
+    def __init__(self, protocol: int = UDP_PROTOCOL, rffu: int = 0):
         super().__init__()
-        if protocol != self.UDP_PROTOCOL:
-            raise ValueError(f"Invalid protocol: {protocol}. Only UDP (17) is supported.")
         self.protocol = protocol
-        self.rffu = 0  # RFFU assign 0
+        self.rffu = rffu
 
     @classmethod
     def attribute_type(cls: Type[Attribute]) -> AttributeType:
@@ -396,14 +398,14 @@ class RequestedTransportAttribute(Attribute):
     @property
     def value(self) -> bytes:
         # pack Protocol (1 byte) and RFFU (3 bytes)
-        return struct.pack('!B3x', self.protocol)
+        value = (((self.protocol & 0xFF) << 24)
+                 | ((self.rffu & 0xFFFFFF) << 0))
+        return struct.pack('!I', value)
 
     def _unpack_value(self, buffer: bytes) -> None:
-        if len(buffer) != 4:
-            raise ValueError(f"Invalid buffer length for Requested-Transport: {len(buffer)}")
-        self.protocol = struct.unpack('!B3x', buffer)[0]
-        if self.protocol != self.UDP_PROTOCOL:
-            raise ValueError(f"Unsupported protocol {self.protocol}. Only UDP (17) is supported.")
+        (value, ) = struct.unpack(f'!I', buffer)
+        self.protocol = (value >> 24)
+        self.rffu = (value & 0xFFFFFF)
 
 
 class ErrorCodeAttribute(Attribute):
@@ -426,11 +428,13 @@ class ErrorCodeAttribute(Attribute):
 
     @property
     def value(self) -> bytes:
-        error_data = (((self.error_class & 0x07) << 8) | (self.error_number & 0xFF))
+        error_data = (((self.error_class & 0x07) << 8)
+                      | (self.error_number & 0xFF))
         return struct.pack(f'!i{len(self.reason_phrase)}s', error_data, self.reason_phrase)
 
     def _unpack_value(self, buffer: bytes) -> None:
-        (error_data, self.reason_phrase) = struct.unpack(f'!i{len(buffer) - 4}s', buffer)
+        (error_data, self.reason_phrase) = struct.unpack(
+            f'!i{len(buffer) - 4}s', buffer)
         error_class = ((error_data & 0x0700) >> 8)
         error_number = ((error_data & 0x00FF) % 100)
         self.error_code = (error_class * 100) + error_number
@@ -557,7 +561,8 @@ class UnknownAttributesAttribute(Attribute):
         return struct.pack(f'!{len(self.unknown_attributes)}H', *self.unknown_attributes)
 
     def _unpack_value(self, buffer: bytes) -> None:
-        self.unknown_attributes = list(struct.unpack(f'!{len(buffer) // 2}H', buffer))
+        self.unknown_attributes = list(
+            struct.unpack(f'!{len(buffer) // 2}H', buffer))
 
 
 class SoftwareAttribute(StringAttributeBase):
@@ -652,32 +657,37 @@ class OtherAddressAttribute(MappedAddressAttributeBase):
         return AttributeType.OTHER_ADDRESS
 
 
-class UnknownAttribute(Attribute):
-    def __init__(self, attribute_type: int, raw_data: bytes):
+# This class can be used to model any attribute that doesn't have a defined
+# format (for example a custom attribute for your application)
+class UndefinedAttribute(Attribute):
+    def __init__(self, attribute_type: int = 0, attribute_value: bytes = b''):
         super().__init__()
-        self.attribute_type = attribute_type
-        self.raw_data = raw_data
+        self._type = attribute_type
+        self._value = attribute_value
+
+    def _check_attribute_type(self, attribute_type: int):
+        # we accept any attribute type when creating / unpacking
+        pass
 
     @classmethod
     def attribute_type(cls: Type[Attribute]) -> AttributeType:
-        return AttributeType.UNKNOWN
+        raise ValueError(
+            'Cannot invoke attribute_type function on UndefinedAttribute')
+
+    @property
+    def type(self) -> AttributeType:
+        return self._type
 
     @property
     def value(self) -> bytes:
-        # Return the raw data (excluding the type and length, if needed)
-        return self.raw_data[4:]
+        return self._value
 
     def _unpack_value(self, buffer: bytes) -> None:
-        # Store the raw data for later inspection if needed
-        self.raw_data = buffer
-
-    def __str__(self) -> str:
-        return (f"UnknownAttribute(type={self.attribute_type}, "
-                f"length={len(self.raw_data) - 4}, raw_data={self.raw_data.hex()})")
+        self._value = buffer
 
 
-def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
-    (attribute_type, attribute_length) = struct.unpack('!HH', buffer[:4])
+def create(buffer: bytes, unpack_undefined_attributes: bool = False) -> Type[Attribute]:  # noqa: C901
+    (attribute_type,) = struct.unpack('!H', buffer[:2])
 
     if attribute_type == AttributeType.MAPPED_ADDRESS:
         return MappedAddressAttribute.create(buffer)
@@ -727,9 +737,7 @@ def create(buffer: bytes) -> Type[Attribute]:  # noqa: C901
         return OtherAddressAttribute.create(buffer)
     elif attribute_type == AttributeType.CHANGE_REQUEST:
         return ChangeRequestAttribute.create(buffer)
+    elif unpack_undefined_attributes:
+        return UndefinedAttribute.create(buffer)
 
-    total_length = 4 + attribute_length + _padding_length(attribute_length)
-    # Return an UnknownAttribute instance with the buffer
-    unknown =  UnknownAttribute(attribute_type, buffer[:total_length])
-    print(unknown)
-    return unknown
+    raise ValueError(f'Unknown STUN attribute type {attribute_type}')
