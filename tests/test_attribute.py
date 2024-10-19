@@ -75,10 +75,12 @@ class AttributeTestCase(unittest.TestCase):
         self.assertEqual(a._value, b'\x01\x02\x03\x04')
 
     def test_create_invalid_type(self):
-        self.assertRaises(ValueError, AttributeDerived.create, b'\x00\x01\x00\x00')
+        self.assertRaises(ValueError, AttributeDerived.create,
+                          b'\x00\x01\x00\x00')
 
     def test_create_invalid_length_too_long(self):
-        self.assertRaises(ValueError, AttributeDerived.create, b'\x00\x00\x00\x01')
+        self.assertRaises(ValueError, AttributeDerived.create,
+                          b'\x00\x00\x00\x01')
 
 
 class MappedAddressAttributeTestCase(unittest.TestCase):
@@ -95,7 +97,8 @@ class MappedAddressAttributeTestCase(unittest.TestCase):
 
     def test_pack(self):
         maa = attribute.MappedAddressAttribute(8, 9, b'\x0A\x0B\x0C\x0D')
-        self.assertEqual(maa.pack(), b'\x00\x01\x00\x08\x00\x08\x00\x09\x0A\x0B\x0C\x0D')
+        self.assertEqual(
+            maa.pack(), b'\x00\x01\x00\x08\x00\x08\x00\x09\x0A\x0B\x0C\x0D')
 
     def test_create(self):
         maa = attribute.MappedAddressAttribute.create(
@@ -138,7 +141,8 @@ class UsernameAttributeTestCase(unittest.TestCase):
         self.assertEqual(una.pack(), b'\x00\x06\x00\x0Ausername12\x00\x00')
 
     def test_create(self):
-        una = attribute.UsernameAttribute.create(b'\x00\x06\x00\x0Busername123\x00')
+        una = attribute.UsernameAttribute.create(
+            b'\x00\x06\x00\x0Busername123\x00')
         self.assertEqual(una.username, b'username123')
 
 
@@ -172,7 +176,8 @@ class MessageIntegrityAttributeTestCase(unittest.TestCase):
         self.assertEqual(mia.hmac, b'1' * 20)
 
     def test_fixed_value(self):
-        self.assertEqual(attribute.MessageIntegrityAttribute.fixed_length(), 20)
+        self.assertEqual(
+            attribute.MessageIntegrityAttribute.fixed_length(), 20)
 
     def test_value(self):
         mia = attribute.MessageIntegrityAttribute(b'2' * 20)
@@ -191,14 +196,17 @@ class MessageIntegrityAttributeTestCase(unittest.TestCase):
 class MessageIntegritySha256AttributeTestCase(unittest.TestCase):
     def test_construct(self):
         mia = attribute.MessageIntegritySha256Attribute(b'1' * 20)
-        self.assertEqual(mia.type, attribute.AttributeType.MESSAGE_INTEGRITY_SHA256)
+        self.assertEqual(
+            mia.type, attribute.AttributeType.MESSAGE_INTEGRITY_SHA256)
         self.assertEqual(mia.hmac, b'1' * 20)
 
     def test_minimum_value(self):
-        self.assertEqual(attribute.MessageIntegritySha256Attribute.minimum_length(), 16)
+        self.assertEqual(
+            attribute.MessageIntegritySha256Attribute.minimum_length(), 16)
 
     def test_maximum_value(self):
-        self.assertEqual(attribute.MessageIntegritySha256Attribute.maximum_length(), 32)
+        self.assertEqual(
+            attribute.MessageIntegritySha256Attribute.maximum_length(), 32)
 
     def test_value(self):
         mia = attribute.MessageIntegritySha256Attribute(b'2' * 20)
@@ -234,6 +242,24 @@ class FingerprintAttributeTestCase(unittest.TestCase):
         fp = attribute.FingerprintAttribute(0x12345678)
         fp._unpack_value(b'\xF2\x34\x56\x79')
         self.assertEqual(fp.fingerprint, 0xF2345679)
+
+
+class RequestedTransportAttributeTestCase(unittest.TestCase):
+    def test_construct(self):
+        rt = attribute.RequestedTransportAttribute(0x12, 0x345678)
+        self.assertEqual(rt.type, attribute.AttributeType.REQUESTED_TRANSPORT)
+        self.assertEqual(rt.protocol, 0x12)
+        self.assertEqual(rt.rffu, 0x345678)
+
+    def test_value(self):
+        rt = attribute.RequestedTransportAttribute(0x12, 0x345678)
+        self.assertEqual(rt.value, b'\x12\x34\x56\x78')
+
+    def test_unpack_value(self):
+        rt = attribute.RequestedTransportAttribute(0x12, 0x345678)
+        rt._unpack_value(b'\x90\xAB\xCD\xEF')
+        self.assertEqual(rt.protocol, 0x90)
+        self.assertEqual(rt.rffu, 0xABCDEF)
 
 
 class ErrorCodeAttributeTestCase(unittest.TestCase):
@@ -305,15 +331,18 @@ class NonceAttributeTestCase(unittest.TestCase):
 
 class PasswordAlgorithmsAttributeTestCase(unittest.TestCase):
     def test_construct(self):
-        algorithms = [attribute.Algorithm(1, b'1234'), attribute.Algorithm(2, b'567')]
+        algorithms = [attribute.Algorithm(
+            1, b'1234'), attribute.Algorithm(2, b'567')]
         paa = attribute.PasswordAlgorithmsAttribute(algorithms)
         self.assertEqual(paa.type, attribute.AttributeType.PASSWORD_ALGORITHMS)
         self.assertEqual(paa.algorithms, algorithms)
 
     def test_value(self):
-        algorithms = [attribute.Algorithm(1, b'1234'), attribute.Algorithm(2, b'567')]
+        algorithms = [attribute.Algorithm(
+            1, b'1234'), attribute.Algorithm(2, b'567')]
         paa = attribute.PasswordAlgorithmsAttribute(algorithms)
-        self.assertEqual(paa.value, b'\x00\x01\x00\x04' + b'1234' + b'\x00\x02\x00\x03' + b'567' + b'\x00')
+        self.assertEqual(paa.value, b'\x00\x01\x00\x04' +
+                         b'1234' + b'\x00\x02\x00\x03' + b'567' + b'\x00')
 
     def test_value_empty(self):
         paa = attribute.PasswordAlgorithmsAttribute([])
@@ -321,13 +350,15 @@ class PasswordAlgorithmsAttributeTestCase(unittest.TestCase):
 
     def test_unpack_value(self):
         paa = attribute.PasswordAlgorithmsAttribute([])
-        paa._unpack_value(b'\x00\x07\x00\x04' + b'aaaa' + b'\xFF\xFF\x00\x01' + b'bbbb')
+        paa._unpack_value(b'\x00\x07\x00\x04' + b'aaaa' +
+                          b'\xFF\xFF\x00\x01' + b'bbbb')
         self.assertEqual(len(paa.algorithms), 2)
         self.assertEqual(paa.algorithms[0], attribute.Algorithm(7, b'aaaa'))
         self.assertEqual(paa.algorithms[1], attribute.Algorithm(0xFFFF, b'b'))
 
     def test_unpack_value_empty(self):
-        algorithms = [attribute.Algorithm(1, b'1234'), attribute.Algorithm(2, b'567')]
+        algorithms = [attribute.Algorithm(
+            1, b'1234'), attribute.Algorithm(2, b'567')]
         paa = attribute.PasswordAlgorithmsAttribute(algorithms)
         paa._unpack_value(b'')
         self.assertEqual(paa.algorithms, [])
@@ -425,7 +456,8 @@ class PriorityAttributeTestCase(unittest.TestCase):
         self.assertEqual(pa.pack(), b'\x00\x24\x00\x04\x12\x34\x56\x78')
 
     def test_create(self):
-        pa = attribute.PriorityAttribute.create(b'\x00\x24\x00\x04\x12\x34\x56\x79')
+        pa = attribute.PriorityAttribute.create(
+            b'\x00\x24\x00\x04\x12\x34\x56\x79')
         self.assertEqual(pa.priority, 0x12345679)
 
 
@@ -464,10 +496,12 @@ class IceControlledAttributeTestCase(unittest.TestCase):
 
     def test_pack(self):
         ica = attribute.IceControlledAttribute(0x1234567890ABCDEF)
-        self.assertEqual(ica.pack(), b'\x80\x29\x00\x08\x12\x34\x56\x78\x90\xAB\xCD\xEF')
+        self.assertEqual(
+            ica.pack(), b'\x80\x29\x00\x08\x12\x34\x56\x78\x90\xAB\xCD\xEF')
 
     def test_create(self):
-        ica = attribute.IceControlledAttribute.create(b'\x80\x29\x00\x08\x12\x34\x56\x78\x90\xAB\xCD\xEE')
+        ica = attribute.IceControlledAttribute.create(
+            b'\x80\x29\x00\x08\x12\x34\x56\x78\x90\xAB\xCD\xEE')
         self.assertEqual(ica.random_number, 0x1234567890ABCDEE)
 
 
@@ -514,7 +548,8 @@ class ChangeRequestAttributeTestCase(unittest.TestCase):
         self.assertEqual(cra.pack(), b'\x00\x03\x00\x04\x12\x34\x56\x78')
 
     def test_create(self):
-        cra = attribute.ChangeRequestAttribute.create(b'\x00\x03\x00\x04\x12\x34\x56\x79')
+        cra = attribute.ChangeRequestAttribute.create(
+            b'\x00\x03\x00\x04\x12\x34\x56\x79')
         self.assertEqual(cra.change_request, 0x12345679)
 
 
@@ -536,6 +571,13 @@ class OtherAddressAttributeTestCase(unittest.TestCase):
         self.assertEqual(oaa.address, b'\x03')
 
 
+class UndefinedAttributeTestCase(unittest.TestCase):
+    def test_construct(self):
+        ua = attribute.UndefinedAttribute(99, b'\x0A')
+        self.assertEqual(ua.type, 99)
+        self.assertEqual(ua.value, b'\x0A')
+
+
 class AttributeCreateTestCase(unittest.TestCase):
     def test_create_valid(self):
         attribute_classes = [attribute.MappedAddressAttribute,
@@ -554,6 +596,7 @@ class AttributeCreateTestCase(unittest.TestCase):
                              attribute.SoftwareAttribute,
                              attribute.AlternateServerAttribute,
                              attribute.FingerprintAttribute,
+                             attribute.RequestedTransportAttribute,
                              attribute.ChangeRequestAttribute,
                              attribute.ResponseOriginAttribute,
                              attribute.OtherAddressAttribute]
@@ -565,5 +608,12 @@ class AttributeCreateTestCase(unittest.TestCase):
     def test_create_empty_buffer(self):
         self.assertRaises(struct.error, attribute.create, b'')
 
-    def test_create_invalid_type(self):
+    def test_create_undefined_type_exception(self):
         self.assertRaises(ValueError, attribute.create, b'\x00\x00\x00\x00')
+
+    def test_create_undefined_type_unpack(self):
+        undefined_attribute = attribute.create(
+            b'\x00\x00\x00\x04\x01\x02\x03\x04', True)
+        self.assertEqual(undefined_attribute.type, 0)
+        self.assertEqual(undefined_attribute.length, 4)
+        self.assertEqual(undefined_attribute.value, b'\x01\x02\x03\x04')
